@@ -1,0 +1,72 @@
+1. Visão Geral do Projeto
+O objetivo é desenvolver um Web App responsivo chamado "Achei um Pet". A plataforma permitirá que usuários reportem a localização de animais de rua através do envio de uma foto e dados de geolocalização. Outros usuários poderão visualizar esses registros em um mapa interativo para facilitar o resgate e acolhimento.
+2. Fluxo do Usuário e Funcionalidades Principais
+Módulo de Registro (Quem encontra o animal):
+O usuário acessa a página de registro do Web App.
+O navegador solicita permissão para acessar a câmera e a localização (GPS).
+Ao permitir, o usuário pode tirar uma foto do animal diretamente pela interface.
+O sistema captura automaticamente as coordenadas de GPS no momento do envio.
+O usuário pode preencher campos opcionais: um comentário/descrição (ex: "Cachorro dócil, parece estar com fome") e um contato (telefone ou e-mail).
+Ao submeter o formulário, os dados e a foto são enviados para o backend.
+Módulo de Consulta (Quem procura um animal para ajudar):
+O usuário acessa a página principal do mapa.
+O navegador solicita permissão de localização para centralizar o mapa na posição atual do usuário.
+O mapa exibe marcadores (markers) indicando a localização dos animais registrados na região.
+Ao clicar em um marcador, um pop-up é exibido com a foto, tipo (cão, gato, etc.), raça, data do registro e a descrição/contato, se houver.
+A interface de consulta deve possuir filtros para buscar animais por tipo (cão, gato, outros) e por raça.
+3. Arquitetura e Requisitos Técnicos do Backend
+Framework: Python com Flask.
+Banco de Dados:
+Utilizar SQLite3 como sistema de gerenciamento de banco de dados.
+Implementar a conexão e a modelagem de dados com SQLAlchemy.
+Definir o modelo AnimalReport com os seguintes campos:
+id: Integer, Chave primária, autoincremento.
+datetime: DateTime, data e hora do registro, com valor padrão do momento da criação.
+latitude: Float, coordenada de latitude.
+longitude: Float, coordenada de longitude.
+rua: String, obtida via geocodificação reversa.
+bairro: String, obtido via geocodificação reversa.
+cidade: String, obtida via geocodificação reversa.
+estado: String, obtido via geocodificação reversa.
+comentario: Text, opcional.
+contato: String, opcional.
+path_photo: String, caminho para o arquivo da imagem salva.
+animal_tipo: String, (ex: "Cão", "Gato", "Outro"), retornado pela IA.
+animal_raca: String, retornada pela IA.
+Pipeline de Processamento de Imagem:
+Recebimento: A imagem é recebida via upload no endpoint da API.
+Redimensionamento: Utilizar a biblioteca Pillow (PIL) para redimensionar a imagem, garantindo que ela não ultrapasse as dimensões de 869x896 pixels, mantendo a proporção.
+Metadados: Utilizar a biblioteca piexif para gravar as coordenadas de latitude e longitude nos metadados EXIF do arquivo JPG.
+Nomenclatura e Armazenamento:
+Gerar um nome de arquivo único no formato {4_letras_aleatorias}_{datetime}.jpg (ex: xzyw_20251027143000.jpg).
+Salvar a imagem processada na pasta ./imagens_recebidas/.
+Integração com IA Generativa (Google Gemini):
+Configuração: Carregar a API_KEY do Google a partir de um arquivo .env usando a biblioteca python-dotenv.
+Análise: Após salvar a imagem, enviar o arquivo para a API do google.generativeai usando o modelo models/gemma-3-12b-it.
+Prompt para a IA: Estruturar um prompt claro para a IA, como: "Analise a imagem deste animal e retorne apenas um objeto JSON com as chaves 'tipo' (valores possíveis: 'Cão', 'Gato', 'Outro') e 'raca'. Se a raça não for identificável, retorne 'SRD' (Sem Raça Definida)."
+Persistência: Salvar o tipo e a raça retornados pela IA nos campos animal_tipo e animal_raca do banco de dados.
+Geolocalização e Mapas:
+Geocodificação Reversa: Utilizar as coordenadas de GPS recebidas para obter o endereço (rua, bairro, cidade, estado). Recomenda-se o uso da biblioteca geopy com um provedor como o Nominatim.
+Geração de Mapas: Criar uma rota na API que retorne os dados dos animais. No backend, usar a biblioteca Folium para gerar o mapa HTML inicial ou, preferencialmente, criar um endpoint que envie os dados em formato JSON para que uma biblioteca de mapas no frontend (como Leaflet.js) possa renderizar os marcadores dinamicamente.
+4. Arquitetura e Requisitos Técnicos do Frontend
+Responsividade: A interface deve ser totalmente responsiva. Utilizar tags @media em CSS para adaptar o layout para telas de desktop e mobile.
+Frameworks/Bibliotecas: É permitido o uso de frameworks como Vue.js ou bibliotecas como Bootstrap 5 ou Tailwind CSS para agilizar o desenvolvimento da interface e garantir um design moderno.
+Interação com o Navegador:
+Implementar JavaScript para solicitar permissão de acesso à localização (navigator.geolocation).
+Implementar JavaScript para solicitar acesso à câmera (navigator.mediaDevices.getUserMedia).
+Componentes da Interface:
+Formulário de Envio: Com campo para upload/captura de foto, área de texto para descrição e campo para contato.
+Visualizador de Mapa: O mapa deve ocupar a área principal da tela de consulta. Usar uma biblioteca como Leaflet.js (que é a base do Folium e mais flexível para interações dinâmicas no frontend) para renderizar o mapa e os marcadores a partir dos dados recebidos da API.
+Filtros: Componentes de select ou checkbox para filtrar os animais por tipo e raça no mapa.
+Pop-up de Informações: Janela modal ou pop-up que aparece ao clicar em um marcador, exibindo os detalhes do animal.
+5. Estrutura de Endpoints da API (Exemplo)
+POST /api/reports: Endpoint para receber os dados do formulário (imagem, coordenadas, descrição, contato).
+GET /api/reports: Endpoint para fornecer os dados dos animais registrados em formato JSON, com suporte a query parameters para filtragem (ex: /api/reports?tipo=Cão&raca=SRD).
+6. Plano de Execução Sugerido
+Setup Inicial: Configurar o ambiente Flask, SQLAlchemy e a estrutura de pastas.
+Backend (Core): Desenvolver o modelo de dados e o endpoint para upload de imagem e salvamento de dados (ainda sem a IA).
+Processamento de Imagem: Integrar o pipeline de redimensionamento, renomeação e salvamento com Pillow e piexif.
+Integração com IA: Adicionar a lógica para enviar a imagem à API do Gemini e atualizar o registro no banco de dados com a resposta.
+Frontend (Página de Envio): Criar o formulário de envio, integrando-o com as APIs de câmera e localização do navegador.
+Frontend (Página do Mapa): Desenvolver a visualização do mapa, a busca de dados na API e a renderização dos marcadores e filtros.
+Finalização: Realizar testes completos do fluxo, refinar o design responsivo e tratar possíveis erros (ex: falha na API da IA, localização não encontrada).
