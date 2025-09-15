@@ -17,19 +17,13 @@ export async function analyzeAnimalImage(imagePath: string): Promise<AnimalAnaly
 
     const imageBytes = fs.readFileSync(imagePath);
 
-    const systemPrompt = `Você é um especialista em identificação de animais. 
-Analise a imagem do animal e retorne APENAS um objeto JSON com as chaves 'tipo' e 'raca'.
-
-Para 'tipo', use apenas um destes valores:
-- "Cão" para cachorros
-- "Gato" para gatos  
-- "Outro" para qualquer outro animal
-
-Para 'raca':
-- Se conseguir identificar a raça específica, retorne o nome da raça
-- Se não conseguir identificar, retorne "SRD" (Sem Raça Definida)
-
-Responda APENAS com o JSON, sem texto adicional.`;
+    // Using the same prompt structure as user's working model
+    const promptText = `
+    Verifique a imagem e responda caso consiga identificar,
+    o tipo de animal e a raça, caso não tenha certeza informe
+    'não identificado' no campo equivalente.
+    Dica: O animal é um pet.
+    [{ 'tipo':<animal>, 'raça':<raça> }]`;
 
     const contents = [
       {
@@ -38,51 +32,79 @@ Responda APENAS com o JSON, sem texto adicional.`;
           mimeType: "image/jpeg",
         },
       },
-      `Analise esta imagem de animal e retorne apenas um objeto JSON com as chaves 'tipo' (valores possíveis: 'Cão', 'Gato', 'Outro') e 'raca'. Se a raça não for identificável, retorne 'SRD' (Sem Raça Definida).`,
+      promptText,
     ];
 
+    // Using the model specified in user's working code
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            tipo: {
-              type: "string",
-              enum: ["Cão", "Gato", "Outro"]
-            },
-            raca: { 
-              type: "string" 
-            },
-          },
-          required: ["tipo", "raca"],
-        },
-      },
+      model: "models/gemma-3-12b-it",
       contents: contents,
     });
 
-    const rawJson = response.text;
+    const rawText = response.text;
 
-    if (rawJson) {
-      const data: AnimalAnalysis = JSON.parse(rawJson);
+    if (rawText) {
+      console.log("Raw AI response:", rawText);
       
-      // Validate the response structure
-      if (!data.tipo || !data.raca) {
-        throw new Error("Invalid response structure from AI");
+      // Try to extract JSON from the response
+      let parsed;
+      try {
+        // Look for JSON in the response text
+        const jsonMatch = rawText.match(/\[?\s*\{\s*['"]\s*tipo['"]\s*:\s*['"](.*?)['"]\s*,\s*['"]\s*ra[çc]a['"]\s*:\s*['"](.*?)['"]\s*\}\s*\]?/i);
+        if (jsonMatch) {
+          parsed = {
+            tipo: jsonMatch[1],
+            raca: jsonMatch[2]
+          };
+        } else {
+          // Try direct JSON parsing
+          parsed = JSON.parse(rawText);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            parsed = parsed[0];
+          }
+        }
+      } catch {
+        // Fallback parsing for simpler responses
+        const tipoMatch = rawText.match(/tipo['"]\s*:\s*['"](.*?)['"]/i);
+        const racaMatch = rawText.match(/ra[çc]a['"]\s*:\s*['"](.*?)['"]/i);
+        
+        if (tipoMatch && racaMatch) {
+          parsed = {
+            tipo: tipoMatch[1],
+            raca: racaMatch[1]
+          };
+        }
       }
-      
-      // Ensure tipo is one of the allowed values
-      if (!["Cão", "Gato", "Outro"].includes(data.tipo)) {
-        console.warn(`Unexpected animal type: ${data.tipo}, defaulting to 'Outro'`);
-        data.tipo = "Outro";
+
+      if (parsed && parsed.tipo && parsed.raca) {
+        let data: AnimalAnalysis = {
+          tipo: "Outro",
+          raca: "SRD"
+        };
+
+        // Normalize tipo
+        const tipoLower = parsed.tipo.toLowerCase();
+        if (tipoLower.includes('cão') || tipoLower.includes('cao') || tipoLower.includes('cachorro') || tipoLower.includes('dog')) {
+          data.tipo = "Cão";
+        } else if (tipoLower.includes('gato') || tipoLower.includes('cat')) {
+          data.tipo = "Gato";
+        } else {
+          data.tipo = "Outro";
+        }
+
+        // Normalize raca
+        if (parsed.raca && parsed.raca.toLowerCase() !== 'não identificado' && parsed.raca.toLowerCase() !== 'nao identificado') {
+          data.raca = parsed.raca;
+        } else {
+          data.raca = "SRD";
+        }
+
+        console.log("Parsed AI analysis:", data);
+        return data;
       }
-      
-      return data;
-    } else {
-      throw new Error("Empty response from Gemini AI");
     }
+
+    throw new Error("Could not parse AI response");
   } catch (error) {
     console.error("Failed to analyze animal image:", error);
     
