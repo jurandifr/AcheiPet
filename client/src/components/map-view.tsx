@@ -25,6 +25,25 @@ export default function MapView({ filters }: MapViewProps) {
 
   const { data: animals } = useQuery<AnimalReport[]>({
     queryKey: ['/api/reports', filters.tipo !== 'all' ? filters.tipo : undefined, filters.raca !== 'all' ? filters.raca : undefined],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.tipo && filters.tipo !== 'all') {
+        params.append('tipo', filters.tipo);
+      }
+      if (filters.raca && filters.raca !== 'all') {
+        params.append('raca', filters.raca);
+      }
+      
+      const response = await fetch(`/api/reports?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch animal reports');
+      }
+      
+      return response.json();
+    },
     refetchInterval: 30000,
   });
 
