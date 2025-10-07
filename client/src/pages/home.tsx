@@ -34,6 +34,12 @@ export default function Home() {
               
               {isAuthenticated && user ? (
                 <div className="flex items-center gap-3">
+                  <Link href="/my-reports">
+                    <Button variant="outline" data-testid="button-my-reports">
+                      <PawPrint className="mr-2 h-4 w-4" />
+                      Meus Relatórios
+                    </Button>
+                  </Link>
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} className="object-cover" />
                     <AvatarFallback>

@@ -11,13 +11,15 @@ export interface IStorage {
   // Animal report operations
   getAnimalReport(id: string): Promise<AnimalReport | undefined>;
   getAllAnimalReports(filters?: { tipo?: string; raca?: string }): Promise<AnimalReport[]>;
+  getUserAnimalReports(userId: string): Promise<AnimalReport[]>;
   createAnimalReport(report: InsertAnimalReport & { 
     rua?: string; 
     bairro?: string; 
     cidade?: string; 
     estado?: string; 
     animalTipo: string; 
-    animalRaca: string; 
+    animalRaca: string;
+    userId?: string;
   }): Promise<AnimalReport>;
   updateAnimalReport(id: string, updates: Partial<AnimalReport>): Promise<AnimalReport | undefined>;
 }
@@ -130,13 +132,23 @@ export class DbStorage implements IStorage {
     return results;
   }
 
+  async getUserAnimalReports(userId: string): Promise<AnimalReport[]> {
+    const reports = await db
+      .select()
+      .from(animalReports)
+      .where(eq(animalReports.userId, userId))
+      .orderBy(sql`${animalReports.datetime} DESC`);
+    return reports;
+  }
+
   async createAnimalReport(insertReport: InsertAnimalReport & { 
     rua?: string; 
     bairro?: string; 
     cidade?: string; 
     estado?: string; 
     animalTipo: string; 
-    animalRaca: string; 
+    animalRaca: string;
+    userId?: string;
   }): Promise<AnimalReport> {
     const result = await db.insert(animalReports).values({
       latitude: insertReport.latitude,
@@ -150,6 +162,7 @@ export class DbStorage implements IStorage {
       estado: insertReport.estado || null,
       animalTipo: insertReport.animalTipo,
       animalRaca: insertReport.animalRaca,
+      userId: insertReport.userId || null,
     }).returning();
     
     return result[0];

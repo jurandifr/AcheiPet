@@ -22,8 +22,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes - check if user is authenticated
   app.get('/api/auth/user', async (req: any, res) => {
     try {
-      if (!req.isAuthenticated() || !req.user?.claims?.sub) {
+      // Check if session and user exist with required claims
+      if (!req.user?.claims?.sub || !req.isAuthenticated?.()) {
         return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check token expiration
+      const now = Math.floor(Date.now() / 1000);
+      if (req.user.expires_at && now > req.user.expires_at) {
+        return res.status(401).json({ message: "Token expired" });
       }
       
       const userId = req.user.claims.sub;
@@ -40,6 +47,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // GET /api/reports/my - Get user's animal reports
+  app.get('/api/reports/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reports = await storage.getUserAnimalReports(userId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching user reports:", error);
+      res.status(500).json({ message: "Failed to fetch user reports" });
+    }
+  });
+
   // POST /api/reports - Create new animal report
   app.post("/api/reports", upload.single('photo'), async (req: Request & { file?: Express.Multer.File }, res) => {
     try {
@@ -69,6 +88,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Analyze image with AI
       const aiAnalysis = await analyzeAnimalImage(processedImage.path);
 
+      // Get userId if user is authenticated
+      const userId = (req as any).isAuthenticated?.() ? (req as any).user?.claims?.sub : undefined;
+
       // Create animal report
       const animalReport = await storage.createAnimalReport({
         latitude: numLat,
@@ -78,6 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pathPhoto: processedImage.filename,
         animalTipo: aiAnalysis.tipo,
         animalRaca: aiAnalysis.raca,
+        userId,
         ...addressInfo
       });
 

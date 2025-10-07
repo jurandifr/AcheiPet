@@ -17,6 +17,7 @@ export const animalReports = pgTable("animal_reports", {
   pathPhoto: text("path_photo").notNull(),
   animalTipo: text("animal_tipo").notNull(),
   animalRaca: text("animal_raca").notNull(),
+  userId: varchar("user_id").references(() => users.id),
 });
 
 export const insertAnimalReportSchema = createInsertSchema(animalReports).pick({
