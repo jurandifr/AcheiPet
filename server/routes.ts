@@ -7,6 +7,7 @@ import { geocodingService } from "./services/geocoding";
 import { analyzeAnimalImage } from "./services/gemini";
 import { insertAnimalReportSchema, animalFilterSchema } from "@shared/schema";
 import { z } from "zod";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 // Configure multer for memory storage
 const upload = multer({ 
@@ -15,6 +16,29 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication middleware
+  await setupAuth(app);
+
+  // Auth routes - check if user is authenticated
+  app.get('/api/auth/user', async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated() || !req.user?.claims?.sub) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
   
   // POST /api/reports - Create new animal report
   app.post("/api/reports", upload.single('photo'), async (req: Request & { file?: Express.Multer.File }, res) => {

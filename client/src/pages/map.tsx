@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { Home, Plus, PawPrint, Dog, Cat, HelpCircle } from "lucide-react";
+import { Home, Plus, PawPrint, Dog, Cat, HelpCircle, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import MapView from "@/components/map-view";
 import RegistrationForm from "@/components/registration-form";
 
@@ -11,6 +13,7 @@ export default function MapPage() {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedBreed, setSelectedBreed] = useState("all");
+  const { user, isAuthenticated } = useAuth();
 
   const filterOptions = [
     { value: "all", label: "Todos", icon: PawPrint },
@@ -38,6 +41,34 @@ export default function MapPage() {
                   Início
                 </Button>
               </Link>
+              
+              {isAuthenticated && user ? (
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} className="object-cover" />
+                    <AvatarFallback>
+                      {user.firstName?.[0] || user.email?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.location.href = "/api/logout"}
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => window.location.href = "/api/login"}
+                  data-testid="button-login"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Entrar
+                </Button>
+              )}
             </div>
           </div>
         </div>

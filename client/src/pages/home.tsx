@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Camera, MapPin, PawPrint, Map, Settings } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Camera, MapPin, PawPrint, Map, Settings, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import RegistrationForm from "@/components/registration-form";
 import RecentAnimalsGrid from "@/components/recent-animals-grid";
 
 export default function Home() {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,9 +31,34 @@ export default function Home() {
                   Ver Mapa
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
+              
+              {isAuthenticated && user ? (
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} className="object-cover" />
+                    <AvatarFallback>
+                      {user.firstName?.[0] || user.email?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.location.href = "/api/logout"}
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sair
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => window.location.href = "/api/login"}
+                  data-testid="button-login"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Entrar
+                </Button>
+              )}
             </div>
           </div>
         </div>
